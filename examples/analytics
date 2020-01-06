@@ -1,0 +1,69 @@
+const mongoose = require("mongoose");
+const Truck = require("../models/truck");
+const Freight = require("../models/freight");
+const moment = require("moment");
+
+module.exports = app => {
+  app.get("/analytics/truck/:id", (req, res) => {
+    Freight.aggregate([
+      {
+        $group: {
+          _id: { $substr: ["$openDate", 5, 2] },
+          count: { $sum: 1 },
+          sum: { $sum: "$price" },
+          avg: { $avg: "$price" }
+        }
+      }
+    ]).then(r => {
+      console.log(r);
+    });
+    console.log(req.params.id);
+    Freight.aggregate([
+      {
+        $unwind: "$cargos"
+      },
+      {
+        $project: {
+          cargos: "$cargos",
+          truck: "$cargos.truck",
+          month: {
+            $month: "$cargos.date"
+          },
+          year: {
+            $year: "$cargos.date"
+          },
+          consumption: "$cargos.consumption"
+        }
+      },
+      {
+        $group: {
+          _id: { truck: "$truck", month: "$month", year: "$year" },
+          cargos: {
+            $push: {
+              weightDepart: "$cargos.weightDepart",
+              weightArrive: "$cargos.weightArrive",
+              fuel: "$cargos.fuel",
+              distance: "$cargos.distance",
+              expenses: "$cargos.expenses",
+              waste: "$cargos.waste",
+              consumption: "$cargos.consumption",
+              truck: "$cargos.truck",
+              driver: "$cargos.driver"
+            }
+          }
+        }
+      }
+    ]).then(r2 => {
+      console.log("r2", r2);
+      res.send(r2);
+    });
+    /*
+    db.test.aggregate([
+    {$group: {
+        _id: {$substr: ['$bookingdatetime', 5, 2]}, 
+        numberofbookings: {$sum: 1}
+    }}
+])
+    */
+  });
+};
